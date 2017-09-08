@@ -9,7 +9,7 @@ The following instructions will get you a copy of the project up and running on 
 ### Prerequisites
 
 You will need:
-* [R](https://cran.r-project.org/), with packages `mgcv`, `Rcpp`, and `RcppArmadillo` installed
+* [R](https://cran.r-project.org/), with packages `fields`, `Rcpp`, and `RcppArmadillo` installed
 * [RTools](https://cran.r-project.org/bin/windows/Rtools/) (for Windows; other systems may need other compilers, e.g. [here](http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-os-x/))
 
 ### Installing
