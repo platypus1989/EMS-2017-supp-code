@@ -1,87 +1,30 @@
-# Project Title
+# Supplementary Code for: Forecasting Urban Water Demand with Statistical and Machine Learning Methods Using Large Space-Time Data
 
-One Paragraph of project description goes here
+This repository provides an example data set and code for fitting the spatio-temporal model in the 2017 EMS paper. The C++ code provides the functions necessary for training the model and using the model to make forecasts. The R code simulates some example data, fits a linear regression model and the spatio-temporal model, and compares forecasts made by each model.
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+The following instructions will get you a copy of the project up and running on your local machine. You can then change simulation settings or use the model on your own data set.
 
 ### Prerequisites
 
-What things you need to install the software and how to install them
-
-```
-Give examples
-```
+You will need:
+* [R](https://cran.r-project.org/), with packages `mgcv`, `Rcpp`, and `RcppArmadillo` installed
+* [RTools](https://cran.r-project.org/bin/windows/Rtools/) (for Windows; other systems may need other compilers, e.g. [here](http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-os-x/))
 
 ### Installing
 
-A step by step series of examples that tell you have to get a development env running
+Once the prerequisites above have been installed, you simply need to copy the two files in this repo ([ST-model.cpp](ST-model.cpp) and [ST-model-example-data.R](ST-model-example-data.R)) to your local machine.
 
-Say what the step will be
+### Running the code
 
-```
-Give the example
-```
-
-And repeat
-
-```
-until finished
-```
-
-End with an example of getting some data out of the system or using it for a little demo
-
-## Running the tests
-
-Explain how to run the automated tests for this system
-
-### Break down into end to end tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-### And coding style tests
-
-Explain what these tests test and why
-
-```
-Give an example
-```
-
-## Deployment
-
-Add additional notes about how to deploy this on a live system
-
-## Built With
-
-* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [Maven](https://maven.apache.org/) - Dependency Management
-* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
-
-## Contributing
-
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/your/project/tags). 
+This code should be able to be run as-is, either line-by-line or all at once. 
 
 ## Authors
 
-* **Billie Thompson** - *Initial work* - [PurpleBooth](https://github.com/PurpleBooth)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+* **Hunter R. Merrill** - [Personal Site](https://sites.google.com/site/hreidmerrill)
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
-## Acknowledgments
-
-* Hat tip to anyone who's code was used
-* Inspiration
-* etc
