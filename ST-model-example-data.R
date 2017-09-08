@@ -28,19 +28,19 @@ ns = 25; nt = 100; nn = ns*nt #25 locations, 100 time points
 
 X1 = rnorm(nn); X2 = rnorm(nn) #two exogenous predictors
 locs = cbind(runif(ns), runif(ns)) #locations on [0,1]^2
-times = 1:nt
+times = 1:nt #100 time points, evenly spaced (this code/model works even if not evenly spaced)
 
 phi = c(1,.25) #one corr parameter for space, one for time
 sigma2 = .25 #nugget
 tau2 = 1 #ST variation scale parameter
 
 dist_S = as.matrix(dist(locs))
-dist_T = as.matrix(dist(times))
+dist_T = as.matrix(dist(times)) #distance matrices
 
 my.dat = data.frame('X1' = X1,
                     'X2' = X2,
                     'times' = rep(times,each=ns),
-                    'locs' = locs)
+                    'locs' = locs) #create data frame
 
 my.dat = my.dat[order(my.dat$locs.1, my.dat$times),] #order for tensor product representation
 
@@ -64,18 +64,18 @@ sourceCpp('ST-model.cpp') #load C++ code
 
 Xlin = cbind(1, dat.train$X1, dat.train$X2) #make design matrix
 
-n.samples = 2500 #number of samples
-print_step = 100 #print every 100 samples
+n.samples = 2500 #number of MCMC samples
+print_step = 100 #print progress every 100 samples
 tune = TRUE #should MH proposals be tuned?
 tune_after = 200 #when should they start? (let samples get somewhere first)
 tune_every = 100 #how often should they be tuned? (how often to calculate previous acceptance rate)
 tune_for = 800 #how long should they be tuned? (stop tuning after tune_for + tune_after)
-burn.in = tune_after + tune_for
+burn.in = tune_after + tune_for #throw these out
 
 ST_samples = ST_MCMC(X_lin = Xlin, #linear model matrix
-                    Y = dat.train$Y, #data
-                    dist_S = dist_S, #spatial distance
-                    dist_T = dist_T.old, #temporal distance
+                    Y = dat.train$Y, #response data
+                    dist_S = dist_S, #spatial distance matrix
+                    dist_T = dist_T.old, #temporal distance matrix
                     n_samples = n.samples, #number of samples
                     print_step = print_step, #print every 100 samples
                     tune = tune, #should MH proposals be tuned?
@@ -85,7 +85,7 @@ ST_samples = ST_MCMC(X_lin = Xlin, #linear model matrix
 
 #check estimates:
 par(mfrow=c(2,2), mar=c(3,3,1,1), mgp=c(2,1,0))
-betas = c(10,1,.5)
+betas = c(10,1,.5) #true values
 for(i in 1:3) {
   plot(ST_samples$b.lin.samples[i,burn.in:n.samples], type = 'l',
        ylab = bquote(beta[.(i)]),
