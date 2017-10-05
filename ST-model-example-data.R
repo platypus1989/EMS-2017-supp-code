@@ -26,7 +26,7 @@ library(Rcpp); library(RcppArmadillo) #for C++ stuff
 
 ns = 25; nt = 100; nn = ns*nt #25 locations, 100 time points
 
-X1 = rnorm(nn); X2 = rnorm(nn) #two exogenous predictors
+X1 = rnorm(nn); X2 = rnorm(nn); X3 = rnorm(nn); X4 = rnorm(nn) #four exogenous predictors
 locs = cbind(runif(ns), runif(ns)) #locations on [0,1]^2
 times = 1:nt #100 time points, evenly spaced (this code/model works even if not evenly spaced)
 
@@ -39,12 +39,14 @@ dist_T = as.matrix(dist(times)) #distance matrices
 
 my.dat = data.frame('X1' = X1,
                     'X2' = X2,
+                    'X3' = X3,
+                    'X4' = X4,
                     'times' = rep(times,each=ns),
                     'locs' = locs) #create data frame
 
 my.dat = my.dat[order(my.dat$locs.1, my.dat$times),] #order for tensor product representation
 
-my.dat$Y = 10 + 1*my.dat$X1 + .5*my.dat$X2 + #linear predictor part...
+my.dat$Y = 10 + 1*my.dat$X1 + .5*my.dat$X2 + 3*my.dat$X3*my.dat$X4 + #linear predictor part...
   t(chol(tau2*exp(-phi[1]*dist_S) %x% exp(-phi[2]*dist_T)))%*%rnorm(nn) + #...ST part...
   rnorm(nn, sd = sqrt(sigma2)) #...and white noise.
 
@@ -62,7 +64,7 @@ dist_T.old = as.matrix(dist(unique(dat.train$times))) #correlation matrices, for
 
 sourceCpp('ST-model.cpp') #load C++ code
 
-Xlin = cbind(1, dat.train$X1, dat.train$X2) #make design matrix
+Xlin = model.matrix(as.formula(paste("~ (", paste(names(dat.train)[grep('X',names(dat.train))], collapse = " + "), ")^2"))) #make design matrix
 
 n.samples = 2500 #number of MCMC samples
 print_step = 100 #print progress every 100 samples
