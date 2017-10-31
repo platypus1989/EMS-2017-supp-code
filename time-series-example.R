@@ -27,9 +27,9 @@ library(BayesTree)
 
 
 #Load functions for Gini and NOIS calculations
-source("/Users/ufgi/Dropbox (UFL)/uf_FFL_irrigation/gini.r")
+source("gini.R")
 #source("gini.r")
-source("20160720_NOIS.R")
+source("NOIS.R")
 
 ### Simulate some data, we will use the same data as the other examples ###
 
