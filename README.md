@@ -16,14 +16,14 @@ You will need:
 
 Once the prerequisites above have been installed, you simply need to copy the files in this repo to your local machine.
 
-### Scripts
+### Running the code
 
 | Script | Description |
 | --- | --- |
 | `GAM-model-example-data.R` | Simulates data and fits the GAM model |
 | `machine-learning-example-data.R` | Simulates data and fits the ML models |
-
-### Running the code
+| `ST-model-example-data.R` | Simulates data and fits the ST model |
+| `time-series-example-data.R` | Simulates data and fits the time series model |
 
 The C++ code [`ST-model.cpp`](https://github.com/hrmerrill/EMS-2017-supp-code/blob/master/ST-model.cpp) provides the functions necessary for training the space-time model and using the model to make forecasts. The R script [`ST-model-example-data.R`](https://github.com/hrmerrill/EMS-2017-supp-code/blob/master/ST-model-example-data.R) simulates some example data and fits and validates the ST model. The R scripts [`GAM-model-example-data.R`](https://github.com/hrmerrill/EMS-2017-supp-code/blob/master/GAM-model-example-data.R) and [`machine-learning-example-data.R`](https://github.com/hrmerrill/EMS-2017-supp-code/blob/master/machine-learning-example-data.R) simulate some example data and fit and validate the corresponding model (either the GAM or the tree-based machine learning methods described in the paper).
 
