@@ -90,7 +90,7 @@ ST_samples = ST_MCMC(X_lin = Xlin, #linear model matrix
 
 #check estimates:
 par(mfrow=c(2,2), mar=c(3,3,1,1), mgp=c(2,1,0))
-betas = c(10,1,.5,0,0,0,0,0,0,0,3) #true values
+betas = c(10,1,.5,0,0,0,0,0,0,0,0) #true values
 for(i in 1:11) {
   plot(ST_samples$b.lin.samples[i,burn.in:n.samples], type = 'l',
        ylab = bquote(beta[.(i)]),
