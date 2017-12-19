@@ -2,7 +2,7 @@
 ### This script simulates some ST data
 ### then fits time series models.
 ### The entire script, as written, 
-### takes 4 seconds to run on a  
+### takes 5 seconds to run on a  
 ### modest laptop
 ###
 ### This code replicates that used for time series
@@ -55,8 +55,6 @@ my.dat$Y = as.vector(10 + 1*sin(my.dat$X1) + .5*my.dat$X2 + #linear predictor pa
                        t(chol(tau2*exp(-phi[1]*dist_S) %x% exp(-phi[2]*dist_T)))%*%rnorm(nn) + #...ST part...
                        rnorm(nn, sd = sqrt(sigma2))) #...and white noise.
 
-### train and test model ###
-
 which.test = which(my.dat$times >= 80) #we will forecast time points 80 - 100.
 which.train = which(my.dat$times < 80)
 
@@ -81,7 +79,68 @@ Eval_metric <- function(x, y, int){
   ))
 }
 
-### 21 step ahead forecast ###
+### AR1 Models ###
+t_s = 10 + 1*my.dat$X1 + .5*my.dat$X2 + #linear predictor part...
+  t(chol(tau2*exp(-phi[1]*dist_S) %x% exp(-phi[2]*dist_T)))%*%rnorm(nn) + #...ST part...
+  rnorm(nn, sd = sqrt(sigma2)) #...and white noise.
+
+dat.train = t_s[which.train,]
+dat.test = t_s[which.test,]
+
+num_loc = length(unique(my.dat$ID))
+
+
+
+indices <- unlist(lapply(1:num_loc, function(x) (x-1)*80+1))
+all.loc <- insert(dat.train, at=indices, values=list(rep(NA,100)))
+
+fit.ar1.all <- arima(all.loc, order=c(1,0,0), method="ML")
+fixed.phi <- as.numeric(fit.ar1.all$coef[1])
+fixed.intercept <- as.numeric(fit.ar1.all$coef[2])
+
+ar1.fixed.all.predictions <- rep(NA, num_loc*20)
+ar1.random.intercept.predictions <- rep(NA, num_loc*20)
+ar1.random.intercept.upper <- rep(NA, num_loc*20)
+ar1.global.intercept.upper <- rep(NA, num_loc*20)
+
+for(i in 1:num_loc){
+  train.start <- 79 * (i-1) + 1
+  train.end <- 79 * i
+  test.start <- 21 * (i-1) + 1
+  test.end <- 21 * i
+  
+  # Predict for each house using the global model with fixed intercept
+  fit.fixed.new <- arima(dat.train[train.start:train.end], 
+                         order=c(1,0,0), fixed=c(fixed.phi, fixed.intercept), transform.pars=FALSE)
+  predict.ar1.fixed <- predict(fit.fixed.new, n.ahead=21, se.fit=T)
+  predict.ar1.fixed.upper <- predict.ar1.fixed$pred + 1.645 * predict.ar1.fixed$se
+  ar1.fixed.all.predictions[test.start:test.end] <- as.numeric(predict.ar1.fixed$pred)
+  ar1.global.intercept.upper[test.start:test.end] <- as.numeric(predict.ar1.fixed.upper)
+  # Predict for each house using the model with fixed phi and random intercept
+  fit.random.intercept.new <- arima(dat.train[train.start:train.end], 
+                                    order=c(1,0,0), fixed=c(fixed.phi, NA), transform.pars=FALSE)
+  predict.ar1.random.intercept <- predict(fit.random.intercept.new, n.ahead=21, se.fit=T)
+  predict.ar1.random.intercept.upper <- predict.ar1.random.intercept$pred + 1.645 * predict.ar1.random.intercept$se
+  ar1.random.intercept.predictions[test.start:test.end] <- as.numeric(predict.ar1.random.intercept$pred)
+  ar1.random.intercept.upper[test.start:test.end] <- as.numeric(predict.ar1.random.intercept.upper)
+  
+}
+
+# Find overall MSEs
+ar1_global_stat <- c(RMSE = sqrt( mean( (ar1.fixed.all.predictions - dat.test)^2) ),
+                     gini = NormalizedGini(dat.test,ar1.fixed.all.predictions),
+                     NOIS = NOIS(dat.test,cbind(NA,ar1.global.intercept.upper)),
+                     AWPI = mean(ar1.global.intercept.upper),
+                     ECPI = mean(dat.test< ar1.global.intercept.upper))
+
+ar1_random_stat <- c(RMSE = sqrt( mean( (ar1.random.intercept.predictions - dat.test)^2) ),
+                     gini = NormalizedGini(dat.test,ar1.random.intercept.predictions),
+                     NOIS = NOIS(dat.test,cbind(NA,ar1.random.intercept.upper)),
+                     AWPI = mean(ar1.random.intercept.upper),
+                     ECPI = mean(dat.test< ar1.random.intercept.upper))
+
+
+### ARIMA Models ###
 
 # ARIMA with fixed order (1,1,1)
 pred <- matrix(NA, nrow = nrow(ts.test), ncol = ncol(ts.test))
@@ -123,11 +182,19 @@ for (i in 1:ns){
 }
 auto_arima_stat <- Eval_metric(ts.test, pred, pred_int)
 
-one_step_table <- rbind(arima_stat,
-                        exo_arima_stat,
-                        auto_arima_stat)
-rownames(one_step_table) <- c('fixed order ARIMA', 'ARIMA with exogenous variables', 'auto ARIMA')
-knitr::kable(one_step_table)
+
+### Summary ###
+summary_table <- rbind(ar1_global_stat,
+                       ar1_random_stat,
+                       arima_stat,
+                       exo_arima_stat,
+                       auto_arima_stat)
+rownames(summary_table) <- c('AR1 with fixed intercept',
+                             'AR1 with random intercept',
+                             'fixed order ARIMA', 
+                             'ARIMA with exogenous variables', 
+                             'auto ARIMA')
+knitr::kable(summary_table)
 
 toc <- proc.time()
 
