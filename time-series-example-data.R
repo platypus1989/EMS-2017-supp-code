@@ -2,8 +2,8 @@
 ### This script simulates some ST data
 ### then fits time series models.
 ### The entire script, as written, 
-### takes XXX seconds to run on a  
-### modest desktop
+### takes 4 seconds to run on a  
+### modest laptop
 ###
 ### This code replicates that used for time series
 ### models in the EMS paper, "Forecasting Urban 
@@ -12,23 +12,18 @@
 ### Space-Time Data" 
 ### (Duerr & Merrill et. al. 2017+)
 ###
-### Isaac Duerr
-### 2017.10.05
+### Chuan Wang
+### 2017.12.18
 #######################################
 
 rm(list=ls()) #clear data
 sapply(dev.list(), dev.off); cat('\014') #clear figures and console
+tic <- proc.time()
 set.seed(1) #set random seed
-library(randomForest)
-library(quantregForest)
-library(caret)
-library(gbm)
-library(BayesTree)
-
+library(forecast)
 
 #Load functions for Gini and NOIS calculations
 source("gini.R")
-#source("gini.r")
 source("NOIS.R")
 
 ### Simulate some data, we will use the same data as the other examples ###
@@ -56,67 +51,84 @@ my.dat = data.frame('X1' = X1,
                     'locs' = locs,
                     "ID" = locID)
 
-t_s = 10 + 1*my.dat$X1 + .5*my.dat$X2 + #linear predictor part...
-  t(chol(tau2*exp(-phi[1]*dist_S) %x% exp(-phi[2]*dist_T)))%*%rnorm(nn) + #...ST part...
-  rnorm(nn, sd = sqrt(sigma2)) #...and white noise.
+my.dat$Y = as.vector(10 + 1*sin(my.dat$X1) + .5*my.dat$X2 + #linear predictor part...
+                       t(chol(tau2*exp(-phi[1]*dist_S) %x% exp(-phi[2]*dist_T)))%*%rnorm(nn) + #...ST part...
+                       rnorm(nn, sd = sqrt(sigma2))) #...and white noise.
+
+### train and test model ###
 
 which.test = which(my.dat$times >= 80) #we will forecast time points 80 - 100.
 which.train = which(my.dat$times < 80)
 
-dat.train = t_s[which.train,]
-dat.test = t_s[which.test,]
+ts.train = matrix(my.dat[which.train,'Y'], ncol = ns, byrow=TRUE)
+ts.test = matrix(my.dat[which.test,'Y'], ncol = ns, byrow=TRUE)
 
-num_loc = length(unique(my.dat$ID))
+X1.train = matrix(my.dat[which.train,'X1'], ncol = ns, byrow=TRUE)
+X1.test = matrix(my.dat[which.test,'X1'], ncol = ns, byrow=TRUE)
 
- 
+X2.train = matrix(my.dat[which.train,'X2'], ncol = ns, byrow=TRUE)
+X2.test = matrix(my.dat[which.test,'X2'], ncol = ns, byrow=TRUE)
 
-indices <- unlist(lapply(1:num_loc, function(x) (x-1)*80+1))
-all.loc <- insert(dat.train, at=indices, values=list(rep(NA,100)))
 
-fit.ar1.all <- arima(all.loc, order=c(1,0,0), method="ML")
-fixed.phi <- as.numeric(fit.ar1.all$coef[1])
-fixed.intercept <- as.numeric(fit.ar1.all$coef[2])
-
-ar1.fixed.all.predictions <- rep(NA, num_loc*20)
-ar1.random.intercept.predictions <- rep(NA, num_loc*20)
-ar1.random.intercept.upper <- rep(NA, num_loc*20)
-ar1.global.intercept.upper <- rep(NA, num_loc*20)
-
-for(i in 1:num_loc){
-  train.start <- 79 * (i-1) + 1
-  train.end <- 79 * i
-  test.start <- 21 * (i-1) + 1
-  test.end <- 21 * i
-  
-  # Predict for each house using the global model with fixed intercept
-  fit.fixed.new <- arima(dat.train[train.start:train.end], 
-                         order=c(1,0,0), fixed=c(fixed.phi, fixed.intercept), transform.pars=FALSE)
-  predict.ar1.fixed <- predict(fit.fixed.new, n.ahead=21, se.fit=T)
-  predict.ar1.fixed.upper <- predict.ar1.fixed$pred + 1.645 * predict.ar1.fixed$se
-  ar1.fixed.all.predictions[test.start:test.end] <- as.numeric(predict.ar1.fixed$pred)
-  ar1.global.intercept.upper[test.start:test.end] <- as.numeric(predict.ar1.fixed.upper)
-  # Predict for each house using the model with fixed phi and random intercept
-  fit.random.intercept.new <- arima(dat.train[train.start:train.end], 
-                                    order=c(1,0,0), fixed=c(fixed.phi, NA), transform.pars=FALSE)
-  predict.ar1.random.intercept <- predict(fit.random.intercept.new, n.ahead=21, se.fit=T)
-  predict.ar1.random.intercept.upper <- predict.ar1.random.intercept$pred + 1.645 * predict.ar1.random.intercept$se
-  ar1.random.intercept.predictions[test.start:test.end] <- as.numeric(predict.ar1.random.intercept$pred)
-  ar1.random.intercept.upper[test.start:test.end] <- as.numeric(predict.ar1.random.intercept.upper)
-  
+### Evaluation Metrics ###
+Eval_metric <- function(x, y, int){
+  return(c(
+    RMSE = sqrt(mean((x-y)^2)),
+    gini = NormalizedGini(as.vector(t(x)),as.vector(t(y))),
+    NOIS = NOIS(as.vector(t(x)),cbind(as.vector(t(int[,,1])),as.vector(t(int[,,2])))),
+    AWPI = mean(int[,,2] - int[,,1]),
+    ECPI = mean((x < int[,,2]) & x > int[,,1])
+  ))
 }
 
-# Find overall MSEs
-ar1.mses.global <- sqrt( mean( (ar1.fixed.all.predictions - dat.test)^2) ) 
-ar1.gini.global <- NormalizedGini(dat.test,ar1.fixed.all.predictions)
-ar1.ECPI.global <- mean(dat.test< ar1.global.intercept.upper)
-ar1.AWPI.global <- mean(ar1.global.intercept.upper)
-ar1.NOIS.global <- NOIS(dat.test,cbind(NA,ar1.global.intercept.upper))  
+### 21 step ahead forecast ###
 
-ar1.mses.random <- sqrt( mean( (ar1.random.intercept.predictions 
-                                    - dat.test)^2) ) 
-ar1.gini.random <- NormalizedGini(dat.test,ar1.random.intercept.predictions)
-ar1.ECPI.random <- mean(dat.test< ar1.random.intercept.upper)
-ar1.AWPI.random <- mean(ar1.random.intercept.upper)
-ar1.NOIS.random <- NOIS(dat.test,cbind(NA,ar1.random.intercept.upper))  
+# ARIMA with fixed order (1,1,1)
+pred <- matrix(NA, nrow = nrow(ts.test), ncol = ncol(ts.test))
+pred_int <- array(NA, dim=c(nrow(ts.test), ncol(ts.test),2))
+for (i in 1:ns){
+  arima_model <- Arima(ts.train[,i], order = c(1,1,1), method="CSS")
+  temp_forecast <- forecast(arima_model, h=21)
+  pred[,i] <- temp_forecast$mean
+  pred_int[,i,1] <- temp_forecast$lower[,2]
+  pred_int[,i,2] <- temp_forecast$upper[,2]
+}
+arima_stat <- Eval_metric(ts.test, pred, pred_int)
 
+# ARIMA with exogenous variables
+pred <- matrix(NA, nrow = nrow(ts.test), ncol = ncol(ts.test))
+pred_int <- array(NA, dim=c(nrow(ts.test), ncol(ts.test),2))
+for (i in 1:ns){
+  train_xreg <- cbind(X1.train[,i], X2.train[,i])
+  arima_model <- Arima(ts.train[,i], order = c(1,1,1),
+                       xreg=train_xreg, method="CSS")
+  test_xreg <- cbind(X1.test[,i], X2.test[,i])
+  temp_forecast <- forecast(arima_model, h=21,
+                            xreg=test_xreg)
+  pred[,i] <- temp_forecast$mean
+  pred_int[,i,1] <- temp_forecast$lower[,2]
+  pred_int[,i,2] <- temp_forecast$upper[,2] 
+}
+exo_arima_stat <- Eval_metric(ts.test, pred, pred_int)
 
+# auto ARIMA
+pred <- matrix(NA, nrow = nrow(ts.test), ncol = ncol(ts.test))
+pred_int <- array(NA, dim=c(nrow(ts.test), ncol(ts.test),2))
+for (i in 1:ns){
+  arima_model <- auto.arima(ts.train[,i])
+  temp_forecast <- forecast(arima_model, h=21)
+  pred[,i] <- temp_forecast$mean
+  pred_int[,i,1] <- temp_forecast$lower[,2]
+  pred_int[,i,2] <- temp_forecast$upper[,2] 
+}
+auto_arima_stat <- Eval_metric(ts.test, pred, pred_int)
+
+one_step_table <- rbind(arima_stat,
+                        exo_arima_stat,
+                        auto_arima_stat)
+rownames(one_step_table) <- c('fixed order ARIMA', 'ARIMA with exogenous variables', 'auto ARIMA')
+knitr::kable(one_step_table)
+
+toc <- proc.time()
+
+cat(paste('it takes', round((toc-tic)[3]), 'seconds to finish on a 2015 Mac Book Pro with Intel Core i5 CPU.'))
