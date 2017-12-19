@@ -21,7 +21,7 @@ sapply(dev.list(), dev.off); cat('\014') #clear figures and console
 tic <- proc.time()
 set.seed(1) #set random seed
 library(forecast)
-
+library(R.utils)
 #Load functions for Gini and NOIS calculations
 source("gini.R")
 source("NOIS.R")
